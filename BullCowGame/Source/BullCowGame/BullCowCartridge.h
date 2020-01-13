@@ -6,6 +6,8 @@
 #include "Console/Cartridge.h"
 #include "BullCowCartridge.generated.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogBullCowCartridge, Log, All);
+
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class BULLCOWGAME_API UBullCowCartridge : public UCartridge
 {
@@ -20,22 +22,16 @@ class BULLCOWGAME_API UBullCowCartridge : public UCartridge
     void AssignHiddenWord();
     void NewGame();
     void EndGame(const bool bWon);
+    bool IsValidGuess(const FString &Guess);
+    const bool IsIsogram(const FString &Word);
+    void CountBullsAndCows(const FString &Guess, int32 &BullCount, int32 &CowCount);
 
     const FString EMPTY = TEXT("");
-    // const FString INTRODUCTION = TEXT("Welcome to the Bulls & Cows Game!\n"
-    //     "I will think of a %d letter isogram\n"
-    //     "(a word with no repeating letters), and\n"
-    //     "you will have %d tries to guess it. After\n"
-    //     "each guess, I will tell you how many bulls\n"
-    //     "and cows that answer is worth. A bull rep-\n"
-    //     "resents a letter in my word in the correct\n"
-    //     "spot. A cow represents a letter in my word\n"
-    //     "in the incorrect spot. Good luck!");
-    // const FString NEW_GAME = TEXT("I'm thinking of a %d letter isogram.\n"
-    //     "You have %d lives. Good luck!");
+    const FString LIFE_STR = TEXT("life");
+    const FString LIVES_STR = TEXT("lives");
 
     FString HiddenWord;
-    int32 WordSize = 5;
     int32 Lives;
     bool bIsFirstGame;
+    bool bIsGameOver;
 };
