@@ -1,10 +1,13 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 #include "BullCowCartridge.h"
+#include "HiddenWordList.h"
 
 DEFINE_LOG_CATEGORY(LogBullCowCartridge);
 
 void UBullCowCartridge::AssignHiddenWord() {
-    HiddenWord = TEXT("ABCDE");
+    // PrintLine(TEXT("H_W.num(): %d"), HIDDEN_WordList.Num());
+    // HiddenWord = TEXT("ABCDE");
+    HiddenWord = HiddenWords[FMath::RandRange(0, HiddenWords.Num() - 1)];
 }
 
 void UBullCowCartridge::NewGame() {
@@ -56,17 +59,17 @@ bool UBullCowCartridge::IsValidGuess(const FString &Guess) {
     FString InvalidityMessage = TEXT("");
 
     if (Guess.Len() != HiddenWord.Len()) {
-        UE_LOG(LogBullCowCartridge, Log, TEXT("Improper length: %s, %s"), *Guess, *HiddenWord);
+        // UE_LOG(LogBullCowCartridge, Log, TEXT("Improper length: %s, %s"), *Guess, *HiddenWord);
         InvalidityMessage = FString::Printf(TEXT("Remember: the word is %d characters long."), HiddenWord.Len());
         bIsValidGuess = false;
     } else if (!IsIsogram(Guess)) {
-        UE_LOG(LogBullCowCartridge, Log, TEXT("Not an isogram: %s"), *Guess);
+        // UE_LOG(LogBullCowCartridge, Log, TEXT("Not an isogram: %s"), *Guess);
         InvalidityMessage = TEXT("Remember: the word is an isogram (it has\nno repeating letters).");
         bIsValidGuess = false;
     }
 
     if (!bIsValidGuess) {
-        UE_LOG(LogBullCowCartridge, Log, TEXT("Not a valid guess: %s"), *Guess);
+        // UE_LOG(LogBullCowCartridge, Log, TEXT("Not a valid guess: %s"), *Guess);
         PrintLine(InvalidityMessage);
 
         if (!bIsFirstGame && --Lives == 0)
@@ -79,7 +82,7 @@ bool UBullCowCartridge::IsValidGuess(const FString &Guess) {
     return bIsValidGuess;
 }
 
-const bool UBullCowCartridge::IsIsogram(const FString &Word) {
+bool UBullCowCartridge::IsIsogram(const FString &Word) const {
     for (int32 Char1 = 0; Char1 < Word.Len() - 1; Char1++) {
         for (int32 Char2 = Char1 + 1; Char2 < Word.Len(); Char2++) {
             if (Word[Char1] == Word[Char2]) {
@@ -91,23 +94,41 @@ const bool UBullCowCartridge::IsIsogram(const FString &Word) {
     return true;
 }
 
-void UBullCowCartridge::CountBullsAndCows(const FString &Guess, int32 &BullCount, int32 &CowCount) {
-    BullCount = 0;
-    CowCount = 0;
+FBullAndCowCounts UBullCowCartridge::CountBullsAndCows(const FString &Guess) const {
+    FBullAndCowCounts Counts;
 
     for (int32 HWChar = 0; HWChar < HiddenWord.Len(); HWChar++) {
-        if (HiddenWord[HWChar] == Guess[HWChar])
-            BullCount++;
-        else
-            for (int32 GChar = 0; GChar < Guess.Len(); GChar++)
-                if (HiddenWord[HWChar] == Guess[GChar])
-                    CowCount++;
+        if (HiddenWord[HWChar] == Guess[HWChar]) {
+            Counts.Bulls++;
+            continue;
+        }
+
+        for (int32 GChar = 0; GChar < Guess.Len(); GChar++) {
+            if (HiddenWord[HWChar] == Guess[GChar]) {
+                Counts.Cows++;
+                break;
+            }
+        }
     }
+
+    return Counts;
+}
+
+TArray<FString> UBullCowCartridge::GetValidWords(const TArray<FString> &WordList) const {
+    TArray<FString> ValidWords;
+    for (FString Word : WordList) {
+        if (Word.Len() >= 4 && Word.Len() <= 8 && IsIsogram(Word)) {
+            ValidWords.Emplace(Word);
+        }
+    }
+
+    return ValidWords;
 }
 
 // When the game starts
 void UBullCowCartridge::BeginPlay() {
     Super::BeginPlay();
+    HiddenWords = GetValidWords(WORDS);
     bIsFirstGame = true;
     NewGame();
 }
@@ -122,11 +143,9 @@ void UBullCowCartridge::OnInput(const FString& Input) {
     }
 
     if (IsValidGuess(Input)) {
-        int32 CowCount;
-        int32 BullCount;
-        CountBullsAndCows(Input.ToUpper(), BullCount, CowCount);
+        FBullAndCowCounts Counts = CountBullsAndCows(Input.ToUpper());
 
-        if (BullCount == HiddenWord.Len()) {
+        if (Counts.Bulls == HiddenWord.Len()) {
             EndGame(true);
         } else {
             FString SChar = TEXT("s");
@@ -135,11 +154,9 @@ void UBullCowCartridge::OnInput(const FString& Input) {
                 PrintLine(TEXT(
                     "\"%s\" is worth %d bull%s and %d cow%s.\n"
                     "You have %d %s remaining."), *(Input.ToUpper()),
-                    BullCount, (BullCount == 1) ? *EMPTY : *SChar,
-                    CowCount, (CowCount == 1) ? *EMPTY : *SChar,
+                    Counts.Bulls, (Counts.Bulls == 1) ? *EMPTY : *SChar,
+                    Counts.Cows, (Counts.Cows == 1) ? *EMPTY : *SChar,
                     Lives, (Lives == 1) ? *LIFE_STR : *LIVES_STR);
-                // PrintLine(TEXT("\"[input]\" is worth [BullCount] bull(s) and [CowCount] cow(s).\n"
-                // "You have [lives] remaining."));
             } else {
                 EndGame(false);
             }
